@@ -1,0 +1,50 @@
+# 题目分析
+
+考虑对于序列中的数互不相同的情况，则我们有做法，将其中一个序列的值映射成另一序列的数组下标。对映射后的序列求LIS，则此序列的LIS就是原来两个序列的LCS。
+
+从另一种角度解释，我们可以将这种做法解释为对于每种取值，我们都有点 $ (i, j) $ ( 其中 $ a_i = b_j $ ) ，即求点序列 $ p $ ，使 $ a_{p_i} < a_{p_{i+1}}, b_{p_i} < b_{p_{i+1}} $。 对此，我们可以用排序（以 $ a $ 作为第一关键字升序，以 $ b $ 作为第二关键字降序）+ 树状数组解决。
+
+回到本题，则我们可以对于每一组相等关系都建出一个这样的点（即若 $ a_i = b_j $ 则建出点 $ (i, j) $ ），因为一个数最多重复 $ 5 $ 次，则我们只会建出 $ 5 \times 5n = 25 n$ 个点， 按照同样的树状数组的方法操作即可。
+
+# 实现
+
+``` cpp
+typedef pair<int, int> Point;
+constexpr int maxn = 20000;
+Point pi[maxn * 25];
+int x[maxn * 5], y[maxn * 5];
+int pos[maxn + 1][5], cnt[maxn + 1];
+int tot = 0, N;
+struct BIT {
+  int c[maxn * 5 + 1];
+  inline int lowbit(int x) { return x & -x; }
+  void maxium(int x, int v) {
+    while (x <= 5 * N) {
+      letmax(c[x], v);
+      x += lowbit(x);
+    }
+  }
+  int query(int x) {
+    int res = 0;
+    while (x) {
+      letmax(res, c[x]);
+      x -= lowbit(x);
+    }
+    return res;
+  }
+} bt;
+int main() {
+  cin >> N;
+  copy_n(istream_iterator<int>(cin), 5 * N, x);
+  copy_n(istream_iterator<int>(cin), 5 * N, y);
+  for (int i = 5 * N - 1; i >= 0; --i)
+    pos[y[i]][cnt[y[i]]++] = i; // 建图，注意式子中是严格小于，此处要反向枚举
+  for (int i = 0; i < 5 * N; ++i)
+    for (int j = 0; j < 5; ++j)
+      pi[tot++] = Point(i, pos[x[i]][j]);
+  for (int i = 0; i < tot; ++i)
+    bt.maxium(pi[i].second + 1, bt.query(pi[i].second) + 1);
+  cout << bt.query(5 * N) << '\n';
+  return 0;
+}
+```

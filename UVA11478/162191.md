@@ -1,0 +1,108 @@
+> [题目链接](https://www.luogu.com.cn/problem/UVA11478)
+
+## #0.0 题目翻译
+
+给定一张带权有向图，定义操作 $\texttt{Halum(}x,d\texttt{)}$ 为将所有以 $x$ 为终点的边的权值减少 $d$，将所有以 $x$ 为起点的边的权值增加 $d$，问通过若干次这样的操作，可得到的最小边权的最大值是多少。
+
+## #1.0 简单思路
+
+
+
+不难发现，多次作用于同一个点的 $\texttt{Halum}$ 操作不受顺序影响，即先 $\texttt{Halum(}x,d_1\texttt{)}$ 再 $\texttt{Halum(}x,d_2\texttt{)}$ 和先 $\texttt{Halum(}x,d_2\texttt{)}$ 再 $\texttt{Halum(}x,d_1\texttt{)}$ 这两种操作顺序对结果没有影响，所以不妨设 $S_x$ 表示所有在 $x$ 上的操作的 $d$ 值之和。
+
+看到**最小值最大**立刻想到二分答案，那么题目转化为给定 $t$，问是否存在操作使得对任意的边 $(x,y)$ 满足 
+
+$$
+w(x,y)-S_y+S_x\geq t
+$$
+
+即
+
+$$
+S_y-S_x\leq w(x,y)-t
+$$
+
+发现上式符合差分约束系统的式子，那么建一条 $x\to y$ 的边，权值为 $w(x,y)-t$ ，再新建一个 $0$ 号节点，向所有点连一条权值为 $0$ 的边，也就是将 $S$ 限制在负数，判断这张新图有没有负环即可。
+
+但是，直接采用队列优化的 $\texttt{Bellman-Ford}$ 算法（$\texttt{SPFA}$）会 $\texttt{TLE}$，而我们只需要知道当前差分约束系统有没有解，所以可以采用 $\texttt{DFS}$ 实现对负环的判断，相对要更快。
+
+**一点细节：**
+
+- 二分答案时，假设当前中点为 $x$，若产生的差分约束系统中存在负环，说明 $x$ 太大了！且不是合法答案，应当执行 $r=x-1$，如果不存在负环，说明 $x$ 是合法答案，应当令 $l=x$（这里用 $l$ 记录答案），循环的终止条件为 $l=r$；
+- 在求中点时应当是 $mid=\dfrac{l + r + 1}{2}$，$+1$ 的原因是不能整除的情况尽量往大里选，防止像 $l=12,r=13$，$l$ 合法，$r$ 不合法，但永远达不到 $l=r$ 的情况出现。
+
+## #2.0 代码实现
+
+``` cpp
+#define mset(l, x) memset(l, x, sizeof(l))
+
+const int N = 100010;
+const int INF = 0x3fffffff;
+
+struct Edge {
+    int u, v, w;
+    int nxt;
+};
+Edge e[N], ne[N];
+
+int n, m, cnt, ncnt, head[N], nhead[N];
+int inq[N], q[N], frt, tal, tot[N];
+ll d[N];
+
+inline void add(const int &u, const int &v, const int &w) {
+    e[cnt].u = u, e[cnt].v = v, e[cnt].w = w;
+    e[cnt].nxt = head[u], head[u] = cnt ++;
+}
+
+bool check_ring(int x) {
+    inq[x] = true;
+    for (int i = head[x]; i; i = e[i].nxt)
+      if (d[e[i].v] > d[x] + e[i].w) {
+          d[e[i].v] = d[x] + e[i].w;
+          if (inq[e[i].v] || check_ring(e[i].v))
+            return true;
+          /*如果 x 找到一个当前在队列里的点 y ，
+          也就意味着 y 本身可以更新 x 的最短路，
+          而 x 又可以更新 y 的最短路，那么一定是产生了负环！*/
+      }
+    inq[x] = false;
+    return false;
+}
+
+bool check(ll x) {
+    mset(d, 0x3f); mset(inq, 0);
+    d[0] = 0, inq[0] = 1;
+    /*注意到本身边权只是减去 x，不必重新建图，直接修改边权即可*/
+    for (int i = 1; i <= m; i ++) e[i].w -= x;
+    bool res = check_ring(0);
+    /*记得要把边权改回来*/
+    for (int i = 1; i <= m; i ++) e[i].w += x;
+    return res;
+}
+
+int main() {
+    while (scanf("%d%d", &n, &m) != EOF) {
+        cnt = 1; mset(head, 0);
+        for (int i = 1; i <= m; i ++) {
+            int u, v, w;
+            scanf("%d%d%d", &u, &v, &w);
+            add(u, v, w);
+        }
+        for (int i = 1; i <= n; i ++) add(0, i, 0);
+        int l = 0, r = 1e9, ans = 0;
+        while (l < r) { //二分答案，注意边界
+            int mid = (l + r + 1) >> 1;
+            if (check(mid)) r = mid - 1;
+            else l = mid;
+        }
+        if (l == 0) printf("No Solution\n");
+        else if (l >= 1e7) printf("Infinite\n");
+        else printf("%d\n", l);
+    }
+    return 0;
+}
+```
+
+## End
+
+希望能给您带来帮助。

@@ -1,0 +1,275 @@
+> [题目链接](https://www.luogu.com.cn/problem/CF1527D)
+
+## #1.0 基本思路
+
+首先需要理解这个 "mex" 的含义，我们需要找出所有的路径使得 $i$ 是编号最小的未出现的点，那么也就意味着 $[0,i-1]$ 应当全部包含在我们要找的路径中。那么我们便可以尝试维护这样的路径：路径两端 $x, y\in[0,i-1]$，$[0，i-1]$ 包含在路径经过的点集中，然后计算有多少条路经可以不经过 $i$（询问）。最后再尝试将 $i$​ 加入当前维护的路径（修改）。
+
+不妨先将整棵树的根节点设为 $0$。
+
+## #2.0 分类讨论
+
+>  下文中会反复运用 LCA 来进行判断，这里采用 st 表 $O(n\log n)$ 预处理，$O(1)$​ 询问的方法。​
+
+- `siz[i]` 表示以 $i$​ 为根的子树大小。
+- `sp` 为非零端点所在 $0$ 的对应儿子的子树大小
+
+本题涉及到的情况比较多，这里会一一讨论。
+
+### #2.1 询问
+
+先来看询问的部分，整体分为 $3$​ 种情况：
+
+- **$i$ 在当前路径中**；
+- **$i$ 是当前路径端点的子孙**；
+- **$i$ 不属于上面的任意一种情况**；
+
+这里再拎出来两种比较特殊的情况：$mex=0$ 和 $mex=1.$
+
+当 $mex=0$​ 时，每次选择的路径应当是都在同一 $0$​ 的子树内的两个点为端点；当 $mex=1$​​ 时，可行的路径数为在去掉 $1$​ 的子树后的点集中任意选取两个点产生的路径条数，减去不经过 $0$ 的路径数量（即在仅在 $0$​ 的子节点的子树内的路径），需要特判是 $1$ 的祖先的子树的情况，采用 LCA 判断。计算代码如下：
+
+``` cpp
+inline void pre_ans() {
+    ans[1] = (siz[0] - siz[1]) * (siz[0] - siz[1] - 1) / 2;
+    for (int i = head[0]; i; i = e[i].nxt) {
+        ans[0] += (1ll * siz[e[i].v] * (siz[e[i].v] - 1)) / 2;
+        int lca = LCA(1, e[i].v);
+        if (lca == e[i].v) ans[1] -= ((siz[e[i].v] - siz[1])
+                                    * (siz[e[i].v] - siz[1] - 1) / 2);
+        else ans[1] -= siz[e[i].v] * (siz[e[i].v] - 1) / 2;
+    }
+}
+```
+
+解决上面的两种特殊情况后，我们再来看将所有情况分为两种情况：
+
+- **路径一端是零**；
+- **路径两端都不是零**；
+
+先来看路径一端是零（两端分别为 $x,0$）的情况：
+
+- **$i$​ 在当前路径中**；
+
+  $LCA(x,i)=i$，这种情况答案一定为 $0$；
+
+- **$i$ 是当前路径端点的子孙**；
+  1. $i$​ 是不为零的一端的端点的子孙。那么答案应当是 `(siz[x] - siz[i]) * (siz[0] - sp)`。这种情况的判断条件 $LCA(x,i)=x$；
+  2. $i$​ 是不与非零端点所在 $0$​ 的对应儿子的子树中。那么答案是 `(siz[0] - sp - siz[i]) * siz[x]`。这种情况的判断条件 $LCA(x, i)=0$​；
+
+- **$i$ 不属于上面的任意一种情况**；
+
+  那么也就意味着 $i$ 是当前路径上的一个分叉，答案即为 `(siz[0] - sp) * siz[x]`。
+
+再来看路径两端 $x,y$ 都不是零的情况：
+
+- **$i$ 在当前路径中**；
+
+  $LCA(x,i)=i$ 或 $LCA(y,i)=i$​，那么答案为零；
+
+- **$i$ 是当前路径端点的子孙**；
+
+  答案为对应端点子树大小减去 `siz[i]` 再乘上另一端点子树大小；
+
+- **$i$​ 不属于上面的任意一种情况**；
+
+  答案为 `siz[x] * siz[y]`；
+
+以上，便是查询操作的所有内容。以下是代码:
+
+``` cpp
+inline ll GetAns(int k){
+    int lca1 = LCA(k, lp), lca2 = LCA(k, rp);
+    ll res1, res2;
+    if (rp) { //这里在插入时会保证为 0 的一端一定是 rp
+        res1 = siz[lp]; res2 = siz[rp];
+        if (lca1 == k || lca2 == k) return 0;
+        /*i 在当前路径上*/
+        else if (lca1 == lp) res1 -= siz[k];
+        else if (lca2 == rp) res2 -= siz[k];
+        /*两种不同的情况*/
+    } else {
+        res1 = siz[lp]; res2 = siz[rp] - sp;
+        if (lca1 == k || lca2 == k) return 0;
+        else if (lca1 == lp) res1 -= siz[k];
+        else if (lca1 == 0) res2 -= siz[k];
+    }
+    return res1 * res2;
+}
+```
+
+### #2.2 修改
+
+现在来尝试将 $i$ 加入当前所维护的路径。
+
+仍旧分为两种大情况：
+
+- 至少一端为 $0$；
+- 两端都不为 $0$；
+
+若两端都不为 $0$，那么有以下三种情况：
+
+- **在路径上**。即 $LCA(x, i)=i$ 或 $LCA(y,i)=i$，那么说明 $i$ 已经在路径上。
+- **是其中一端的儿子**，即 $LCA(x,i)=x$ 或 $LCA(y,i)=y$，将对应的端点设置为 $i$ 即可；
+- **不属于上面的两种情况**，即是当前路径的分叉，那么显然不可能将 $[1,i]$ 通过一条路径相连，那么后面的所有答案数都应当是 $0$​。
+
+若存在至少一端 $y=0$，有以下几种情况：
+
+- 另一端也是 $0$，那么令其中一端变为 $i$；
+- $LCA(x,i)=i$，已经在路径上；
+- $LCA(x,i)=i$，更新 $x=i$​；
+- 不属于上面的情况但 $LCA(x,i)\ne0$，那么意味着分叉了，插入失败；
+- $x\ne0$ 且 $LCA(x,i)=0$，那么更新 $y=0$；
+
+``` cpp
+inline bool add(int x) {
+    int lf = LCA(lp, x), rf = LCA(rp, x);
+    if (rp) {
+        if (lf == lp) {lp = x; return true;}
+        else if (lf == x) return true;
+        if (rf == rp) {rp = x; return true;}
+        else if (rf == x) return true;
+    } else {
+        if (lf && (lf != lp && lf != x)) return false;
+        else if (lf == lp) {lp = x; return true;}
+        else if (lf == x) return true;
+        else if (lf) return false;
+        else {rp = x; return true;}
+    }
+    return false;
+}
+```
+
+## #3.0 完整代码
+
+> 有许多数组可以不 `memset()` 就不 `memset()`；比如本题中的 `dep[]` 和 `siz[]`；
+
+``` cpp
+const int N = 600010;
+const int INF = 0x3fffffff;
+
+struct Edge {
+    int u, v;
+    int nxt;
+};
+Edge e[N << 1];
+
+int n, head[N], cnt = 1, st[N << 1], scnt, lp, rp;
+int mn[N << 1][30], dep[N], w[N], rt, t, lg2[N], f1, f2;
+ll ans[N], sp, siz[N];
+
+inline void clear() { //清空
+    cnt = 1, scnt = lp = rp = 0;
+    mset(head, 0); dep[0] = 0;
+}
+
+inline void add(const int &u, const int &v) {
+    e[cnt].u = u, e[cnt].v = v;
+    e[cnt].nxt = head[u], head[u] = cnt ++;
+}
+
+inline int LCA(int a, int b) { //O(1) 获得 LCA
+    int l = w[a], r = w[b];
+    if (r < l) swap(l, r);
+    int k = lg2[r - l + 1];
+    if (dep[mn[l][k]] < dep[mn[r - (1 << k) + 1][k]])
+        return mn[l][k];
+    else return mn[r - (1 << k) + 1][k];
+}
+
+void dfs(int x, int fa) { //计算 siz[],dep[] 等数组
+    st[++ scnt] = x, w[x] = scnt;
+    siz[x] = 1, dep[x] = dep[fa] + 1;
+    for (int i = head[x]; i; i = e[i].nxt) {
+        if (e[i].v == fa) continue;
+        dfs(e[i].v, x); st[++ scnt] = x;
+        siz[x] += siz[e[i].v];
+    }
+}
+
+inline void get_st() { //计算 st 表，用于 O(1) LCA
+    lg2[1] = 0;
+    for (int i = 2; i <= scnt; ++ i) lg2[i] = lg2[i >> 1] + 1;
+    for (int i = 1; i <= scnt; ++ i) mn[i][0] = st[i];
+    for (int j = 1; j <= lg2[scnt]; ++ j)
+      for (int i = 1; i + (1 << j) - 1 <= scnt; ++ i)
+        if (dep[mn[i][j - 1]] < dep[mn[i + (1 << (j - 1))][j - 1]])
+          mn[i][j] = mn[i][j - 1];
+        else mn[i][j] = mn[i + (1 << (j - 1))][j - 1];
+}
+
+inline void pre_ans() { //预处理 0 和 1 的答案
+    ans[1] = (siz[0] - siz[1]) * (siz[0] - siz[1] - 1) / 2;
+    for (int i = head[0]; i; i = e[i].nxt) {
+        ans[0] += (1ll * siz[e[i].v] * (siz[e[i].v] - 1)) / 2;
+        int lca = LCA(1, e[i].v);
+        if (lca == e[i].v) ans[1] -= ((siz[e[i].v] - siz[1])
+                                    * (siz[e[i].v] - siz[1] - 1) / 2);
+        else ans[1] -= siz[e[i].v] * (siz[e[i].v] - 1) / 2;
+    }
+}
+
+inline bool add(int x) { //尝试将点加入路径
+    int lf = LCA(lp, x), rf = LCA(rp, x);
+    if (rp) {
+        if (lf == lp) {lp = x; return true;}
+        else if (lf == x) return true;
+        if (rf == rp) {rp = x; return true;}
+        else if (rf == x) return true;
+    } else {
+        if (lf && (lf != lp && lf != x)) return false;
+        else if (lf == lp) {lp = x; return true;}
+        else if (lf == x) return true;
+        else if (lf) return false;
+        else {rp = x; return true;}
+    }
+    return false;
+}
+
+inline ll GetAns(int k){ //计算每个点的答案
+    int lca1 = LCA(k, lp), lca2 = LCA(k, rp);
+    ll res1, res2;
+    if (rp) {
+        res1 = siz[lp]; res2 = siz[rp];
+        if (lca1 == k || lca2 == k) return 0;
+        else if (lca1 == lp) res1 -= siz[k];
+        else if (lca2 == rp) res2 -= siz[k];
+    } else {
+        res1 = siz[lp]; res2 = siz[rp] - sp;
+        if (lca1 == k || lca2 == k) return 0;
+        else if (lca1 == lp) res1 -= siz[k];
+        else if (lca1 == 0) res2 -= siz[k];
+    }
+    return res1 * res2;
+}
+
+int main(){
+    scanf("%d", &t);
+    while (t --) {
+        scanf("%d", &n); clear();
+        for (int i = 1; i < n; ++ i) {
+            int u, v; scanf("%d%d", &u, &v);
+            add(u, v); add(v, u);
+        }
+        dfs(rt = 0, 0); get_st(); pre_ans();
+        /*进行所需要的预处理*/
+        for (int i = head[0]; i; i = e[i].nxt)
+          if (LCA(e[i].v, 1) == e[i].v) {
+              sp = siz[e[i].v]; break;
+          } //计算 sp
+        for (int i = 2; i <= n; ++ i) {
+            if (!add(i - 1)) break; 
+            //尝试加入 i-1，不行就退出
+            if (i == n) {ans[i] = 1; break;}
+            /*如果 i == n，那么显然只存在一条路径
+            贯穿整个树（其实是一条链）*/
+            ans[i] = GetAns(i);
+        }
+        for (int i = 0; i <= n; ++ i) {
+            printf("%lld ", ans[i]);
+            ans[i] = 0;
+        }
+        printf("\n");
+    }
+    return 0;
+}
+```
+

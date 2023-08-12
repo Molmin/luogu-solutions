@@ -1,0 +1,31 @@
+## 题意简述
+- 给出一个由小写字母组成的字符串，其中每个字母出现的次数不超过两次。
+- 你要将这个字符串重排，使得所有出现两次的字母两次出现相隔的距离都相等。
+
+## 解题思路
+容易得知，所有出现的字母两次出现的位置都相邻时距离相等。
+
+## 代码实现
+```cpp
+#include<bits/stdc++.h>
+using namespace std;
+int main(void){
+    ios::sync_with_stdio(0);
+    cin.tie(0);
+    char s[55];
+    int a[30];
+    int t;
+    cin >> t;
+    while(t --){
+        cin >> s;
+        memset(a,0,sizeof(a));
+        for(int i = 0;s[i] != '\0';++ i)
+            ++ a[s[i]-'a'];
+        for(int i = 0;i < 26;++ i)
+            while(a[i])
+                cout << char(i+'a'),-- a[i];
+        cout << '\n';
+    }
+    return 0;
+}
+```

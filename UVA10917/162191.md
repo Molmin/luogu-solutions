@@ -1,0 +1,122 @@
+## #1.0 理解题意
+
+本题最需要理解的是这句话：
+
+**如果有一条从B到他的家的路线比从A到他的家的任何可能的路线都短,那么他认为从A到B更好。**
+
+设 $d_x$ 表示 $x$ 到 $2$ 号节点的最短路，那么上文的意思就是如果 $A,B$ 间存在道路且 $d_B<d_A$，那么道路 $A\to B$ 便是一种可行的选择。
+
+## #2.0 大体思路
+
+根据上面那句话，我们便需要先处理出所有点到 $2$ 号点的最短距离。然后按照上面的要求重新建图，这里建出的边是单向边，再注意到得到的图是一张**有向无环图**（$\texttt{DAG}$），因为每条边的边权都是非负数，用反证法不难证明得到的最短路图不存在环。
+
+此时考虑 $\texttt{DAG}$ 上的动态规划，设 $sum_x$ 表示从 $1$ 号节点到 $x$ 号节点可行的路径条数，显然有
+
+$$
+sum_x=\sum\limits_{(y,x)\in E}sum_y.
+$$
+
+这里 $E$ 表示边集，有序数对 $(u,v)$ 表示一条从 $u$ 的 $v$ 的有向边。边界为 $sum_1=1.$
+
+同时注意到，节点 $1$ 不一定是入度为 $0$ 的点，入度为零的点除 $1$ 外不会对答案造成贡献。
+
+拓扑结束后得到的结果便是本题所求。
+
+``` cpp
+#define pii pair<int, int>
+#define mp(a, b) make_pair(a, b)
+#define mset(l, x) memset(l, x, sizeof(l))
+
+const int N = 100010;
+const int INF = 0x7fffffff;
+
+struct Edge {
+    int u, v, w;
+    int nxt;
+};
+Edge e[N], ne[N];
+
+int cnt = 1, ncnt = 1, head[N], nhead[N];
+int dist[N], vis[N], tot[N], s, t, icnt[N];
+int qx[N], frt, tal, tag[N], n, m;
+
+priority_queue <pii > q;
+
+inline void add(const int &u, const int &v, const int &w) {
+    e[cnt].u = u, e[cnt].v = v, e[cnt].w = w;
+    e[cnt].nxt = head[u], head[u] = cnt ++;
+}
+
+inline void addn(const int &u, const int &v) {
+    ne[ncnt].u = u, ne[ncnt].v = v, icnt[v] ++;
+    ne[ncnt].nxt = nhead[u], nhead[u] = ncnt ++;
+}
+
+void Dijkstra() {
+    mset(dist, 0x3f);
+    q.push(mp(0,2)); dist[2] = 0;
+    while (q.size()) {
+        int now = q.top().second; q.pop();
+        if (vis[now]) continue;
+        vis[now] = true;
+        for (int i = head[now]; i; i = e[i].nxt)
+          if (dist[e[i].v] > dist[now] + e[i].w) {
+              dist[e[i].v] = dist[now] + e[i].w;
+              q.push(mp(-dist[e[i].v], e[i].v));
+          }
+    }
+}
+
+inline void clear() {
+    frt = 0, tal = -1; 
+    ncnt = cnt = 1; mset(tot, 0);
+    mset(icnt, 0); mset(tag, 0);
+    mset(vis, 0); mset(dist, 0x3f);
+    mset(head, 0); mset(nhead, 0);
+}
+
+void topo() {
+    mset(vis, 0);
+    for (int i = 1; i <= n; i ++) 
+      if (!icnt[i] || i == 1) qx[++ tal] = i;
+    tag[1] = tot[1] = vis[1] = 1;
+    while (frt <= tal) {
+        int now = qx[frt ++];
+        for (int i = nhead[now]; i;i = ne[i].nxt) {
+            icnt[ne[i].v] --;
+            if (tag[now]) {
+                tot[ne[i].v] += tot[now], 
+                tag[ne[i].v] |= tag[now];
+            }
+            if (!icnt[ne[i].v] && !vis[ne[i].v]) {
+                qx[++ tal] = ne[i].v;
+                vis[ne[i].v] == true;
+            }
+        }
+    }
+}
+
+int main() {
+    scanf("%d", &n);
+    while (n) {
+        scanf("%d", &m); s = 1, t = 2; clear();
+        for (int i = 1; i <= m; i ++) {
+            int u, v, w; scanf("%d%d%d", &u, &v, &w);
+            add(u, v, w); add(v, u, w);
+        }
+        Dijkstra();
+        for (int i = 1; i <= n; i ++)
+          for (int j = head[i]; j; j = e[j].nxt)
+            if (dist[i] > dist[e[j].v])
+              addn(i, e[j].v);
+        topo();
+        printf("%d\n", tot[t]);
+        scanf("%d", &n);
+    }
+    return 0;
+}
+```
+
+## End
+
+希望能为各位带来帮助。

@@ -1,0 +1,23 @@
+# 题意
+构造一个递增的数列，使每一项都不能被前一项整除
+# 思路
+当 $n \gt 2$ 时，总有 $n$ 不能被 $n-1$ 整除
+# 代码
+```cpp
+#include<iostream>
+using namespace std;
+int main(void){
+    ios::sync_with_stdio(0);
+    cin.tie(nullptr);
+    int n,i,t;
+    cin >> t;
+    while(t--){
+        cin >> n;
+        for(i = 2;i <= n+1;++ i)
+            cout << i << ' ';
+        cout << '\n';
+    }
+    cout << endl;
+    return 0;
+}
+```

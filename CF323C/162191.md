@@ -1,0 +1,142 @@
+> [题目链接](https://www.luogu.com.cn/problem/CF323C)
+
+## #0.0 简单翻译
+
+给定两个长为 $n$ 的**排列** $a,b$，有 $m$ 次询问，每次询问包含 $4$ 个整数 $l_1,r_1,l_2,r_2$，问数组 $a$ 上在区间 $[l_1,r_1]$ 与数组 $b$ 上在区间 $[l_2,r_2]$ 中有多少个相同的数。
+
+本题**强制在线**，设 $x$ 为上次询问的结果加一（若之前没有询问 $x=0$），定义函数 $f(z)$ 如下：
+
+$$
+f(z)=((z-1+x)\bmod n)+1,
+$$
+
+每次询问给出 $4$ 个整数 $a, b, c, d$，有
+
+$$
+\begin{aligned}
+l_1&=\min\{f(a),f(b)\},\\
+r_1&=\max\{f(a),f(b)\},\\
+l_2&=\min\{f(c),f(d)\},\\
+r_2&=\max\{f(c),f(d)\}.
+\end{aligned}
+$$
+
+## #1.0 简单思路
+
+题目告诉我们 $a$ 和 $b$ 是两个排列，所以对于 $i\in[1,n]$，每个 $i$ 在 $a$ 中出现一次，在 $b$ 中出现一次，考虑通过相同的数将 $a$ 与 $b$ 联系起来，同时需要保证联系起来后的不同的数在对应序列中的相对位置不改变，于是将 $i\in[1,n]$ 在 $a$ 中出现的位置 $x$ 作为第一维坐标，在 $b$ 中出现的位置 $y$ 作为第二位坐标，于是便将一个数 $i$ 转化为了平面直角坐标系上的一个点，横轴是 $a$ 数列的下标，纵轴是 $b$ 数组的下标，显然这样做原数列中的数的相对位置没有改变。
+
+现在问题变为了给定 $l_1,r_1,l_2,r_2$，求在四点 $(l_1,l_2),(l_1,r_2),(l_2,r_2),(l_2,r_1)$ 围成的矩形中出现的点的数量。
+
+这个问题是**主席树**的经典运用。我们将每一个 $x$ 看作一个版本，主席树每个叶节点对应一个 $y$，每次将对应 $x$ 上所有的点插入主席树，即主席树上对应 $y$ 上的计数加一，维护区间和。
+
+那么，我们每次查询所要的答案的便是 $r_1$ 版本的 $[l_2,r_2]$ 的区间和减去 $l_1-1$ 版本的 $[l_2,r_2]$ 的区间和。
+
+比如样例二转化后便如下图：
+
+![](https://pic.imgdb.cn/item/60fe9ec75132923bf827aa68.png)
+
+途中框出部分是第一次讯问的覆盖范围。
+
+## #2.0 代码实现
+
+``` cpp
+const int M = 1000010;
+const int N = 40000010;
+const int INF = 0x3fffffff;
+
+template <typename T>
+inline T Max(const T a, const T b) {
+    return a > b ? a : b;
+}
+
+template <typename T>
+inline T Min(const T a, const T b) {
+    return a < b ? a : b;
+}
+
+struct Point {
+    int x, y;
+
+    inline bool operator < (const Point b) const {
+        /*重载运算符，保证按 x 自小向大插入主席树*/
+        return (x == b.x) ? (y <= b.y) : (x < b.x);
+    }
+};
+Point t[M];
+
+struct Node {
+    int ls, rs;
+    int val;
+};
+Node p[N];
+
+int n, m, a[M], b[M], cnt, rt[M], lst;
+
+inline int f(int x) { //应对强制在线
+    return ((x - 1 + lst) % n) + 1;
+}
+
+inline void pushup(int k) {
+    p[k].val = p[p[k].ls].val + p[p[k].rs].val;
+}
+
+/*需要提前构建出 x=0 的版本，上面所有计数为 0*/
+void build(int &k, int l, int r) {
+    if (!k) k = ++ cnt;
+    if (l == r) return;
+    int mid = (l + r) >> 1;
+    build(p[k].ls, l, mid);
+    build(p[k].rs, mid + 1, r);
+}
+
+void insert(int &k, int pr, int l, int r, int x) {
+    if (!k) k = ++ cnt; //建新点
+    if (l == r) {
+        p[k].val = p[pr].val + 1; return;
+    } //注意要从原点复制
+    int mid = (l + r) >> 1;
+    if (x <= mid) {
+        p[k].rs = p[pr].rs;
+        insert(p[k].ls, p[pr].ls, l, mid, x);
+    } else {
+        p[k].ls = p[pr].ls;
+        insert(p[k].rs, p[pr].rs, mid + 1, r, x);
+    } //分别考虑递归修改左右子树
+    pushup(k);
+}
+
+int query(int k1, int k2, int l, int r, int x, int y) {
+    if (x <= l && r <= y) return p[k1].val - p[k2].val;
+    int mid = (l + r) >> 1, res = 0;
+    if (x <= mid) res += query(p[k1].ls, p[k2].ls, l, mid, x, y);
+    if (y > mid) res += query(p[k1].rs, p[k2].rs, mid + 1, r, x, y);
+    return res;
+}
+
+int main() {
+    scanf("%d", &n);
+    for (int i = 1; i <= n; ++ i) {
+        int x; scanf("%d", &x);
+        t[x].x = i;
+    }
+    for (int i = 1; i <= n; ++ i) {
+        int x; scanf("%d", &x);
+        t[x].y = i;
+    }
+    sort(t + 1, t + n + 1);
+    build(rt[0], 1, n);
+    /*先将所有的点插入主席树*/
+    for (int i = 1; i <= n; ++ i)
+      insert(rt[t[i].x], rt[t[i].x - 1], 1, n, t[i].y);
+    scanf("%d", &m);
+    while (m --) {
+        int l1, l2, r1, r2, a, b, c, d;
+        scanf("%d%d%d%d", &a, &b, &c, &d);
+        l1 = Min(f(a), f(b)), r1 = Max(f(a), f(b));
+        l2 = Min(f(c), f(d)), r2 = Max(f(c), f(d));
+        int res = query(rt[r1], rt[l1 - 1], 1, n, l2, r2);
+        printf("%d\n", res); lst = res + 1;
+    }
+    return 0;
+}
+```

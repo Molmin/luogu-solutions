@@ -1,0 +1,61 @@
+## 题意简述
+- 给定数列 $k_1,k_2,...,k_n$ 和 $h_1,h_2,...,h_n$，并且有 $1 \leqslant h_i \leqslant k_i \leqslant 10^9$。
+- 将 $k_1,k_2,...,k_n$ 看做数轴上的点，你可以选定数轴上的一些不重叠的区间 $[l,r]$，使得有 $k_i - l + 1 \geqslant h_i \forall i \in [1,n]$。
+- 选取每个区间的代价是 $\sum_{i = 1}^{r-l+1} i$，你要使总代价尽可能小，并输出最小的代价。
+- 给出的数据保证有解。
+
+## 解题思路
+我们采用贪心的思想。
+
+首先，我们可以得知：对于每个点 $k_i$，必定有区间 $[k_i - h_i + 1,k_i]$ 被选取。
+
+同时我们知道，选取区间的代价只与区间的长度 $(r-l+1)$ 有关，因此，选取的区间越短，总代价越小。
+
+考虑如何使区间的长度更短：
+- 当区间没有重叠时，直接选取必须选取的区间。
+- 当区间存在重叠时，就把两个区间合并。
+
+这么做的正确性：
+- 要求中的 $k_i - l + 1$ 可以看做是区间 $[l,k_i]$ 的长度。
+- 开始时对于每个点确定的区间长度就是最短合法的区间长度。
+- 合并 $k_i$ 和 $k_{i+1}$ 两个点确定的区间只会增加区间 $[l,k_i]$ 或 $[l,k_{i+1}]$ 的长度（也有可能都不改变），而不能使区间长度减小。
+
+因此这样做是正确的。
+
+## 代码实现
+记得开 `long long`
+
+```cpp
+#include<bits/stdc++.h>
+#define ll long long
+using namespace std;
+ll max(ll a,ll b){
+	return a>b ? a : b;
+}
+ll sum(ll a,ll b){
+	return 1ll * (a+b) * (b-a+1) / 2;
+}
+int main(void){
+	ios::sync_with_stdio(0);
+	cin.tie(0);
+	ll t,n,k[105],h[105],m,ans;
+	cin >> t;
+	while(t--){
+		cin >> n;
+		for(int i = 1;i <= n;++ i)
+			cin >> k[i];
+		for(int i = 1;i <= n;++ i)
+			cin >> h[i];
+		ans = 0,k[0] = 0,m = k[n];
+		for(int i = n;i >= 1;-- i){
+			if(k[i]-k[i-1] >= h[i]){
+				ans += sum(1,m-k[i]+h[i]);//k[i]-h[i]+1 :: m
+				m = k[i-1];
+			}else
+				h[i-1] = max(h[i-1],h[i]-(k[i]-k[i-1]));
+		}
+		cout << ans << '\n';
+	}
+	return 0;
+}
+```

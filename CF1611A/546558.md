@@ -1,0 +1,51 @@
+## 题目大意
+- 有 $t$ 组数据，每组给出一个数字 $n (1 \le n \le 10^{4})$，求将 $n$ 变成偶数的最少操作数，若无法完成则
+- 定义一次操作为：给出一个数 $l$，将 $n$ 的第 $1$ 项与第 $l$ 项交换，第 $2$ 项与第 $l-1$ 项交换，以此类推
+
+## 解题思路
+**先给出推导的结果：**
+1. 当原数中的任意一位都为奇数时无法完成
+2. 当原数为偶数时，需要 $0$ 次操作
+3. 当原数开头一位为偶数时，需要 $1$ 次操作
+4. 否则需要 $2$ 次操作
+
+**证明：**
+1. 操作为对原数各数位的交换，原来没有偶数自然变不出来
+2. ~~由题意得~~
+3. 翻转整个数字
+4. 因为无论如何，最后一位都只能与第一位交换，所以需要先将偶数交换到第一位上，然后翻转整个数字
+
+## 代码实现
+```cpp
+#include<cstdio>
+int t;
+char n[15];
+int s;
+bool flag;
+inline bool check(int pt){
+	return (n[pt]-'0') & 1;
+}
+void solve(void){
+	scanf("%s",n);
+	flag = 1;
+	for(s = 0;n[s] != '\0';++ s)
+		flag = flag && check(s);
+	if(flag)
+		printf("-1\n");
+	else{
+		if(!check(s-1))
+			printf("0\n");
+		else if(!check(0))
+			printf("1\n");
+		else
+			printf("2\n");
+	}
+	return;
+}
+int main(void){
+	scanf("%d",&t);
+	for(int i = 0;i < t;++ i)
+		solve();
+	return 0;
+}
+```
